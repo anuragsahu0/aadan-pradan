@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: aadan-pradan
+    env: node
+    plan: free
+    buildCommand: npm ci && npm run build --workspaces --if-present && cd apps/mobile && npx expo export --platform web
+    startCommand: npm run start --workspace=apps/server
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        value: "*"
