@@ -1,0 +1,42 @@
+{
+  "name": "aadan-pradan-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Aadan Pradan — Mobile-first, internet-based, virtual-frequency walkie-talkie application",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev --workspace=apps/server",
+    "dev:mobile": "npm run dev --workspace=apps/mobile",
+    "build:packages": "npm run build --workspace=packages/types && npm run build --workspace=packages/config && npm run build --workspace=packages/utils && npm run build --workspace=packages/shared",
+    "build": "npm run build:packages && npm run build --workspace=apps/server",
+    "test": "npm run test --workspace=apps/server && npm run test --workspace=apps/mobile",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "prisma:generate": "npm run prisma:generate --workspace=apps/server",
+    "prisma:validate": "npm run prisma:validate --workspace=apps/server"
+  },
+  "keywords": [
+    "walkie-talkie",
+    "virtual-frequency",
+    "real-time-voice",
+    "ptt",
+    "expo",
+    "react-native",
+    "socket.io",
+    "express",
+    "prisma"
+  ],
+  "author": "Aadan Pradan Engineering Team",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "prettier": "^3.3.3",
+    "typescript": "^5.5.4"
+  },
+  "packageManager": "npm@10.8.2",
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

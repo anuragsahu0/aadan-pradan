@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022"],
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "@aadan-pradan/types": ["../types/src"],
+      "@aadan-pradan/types/*": ["../types/src/*"],
+      "@aadan-pradan/config": ["../config/src"],
+      "@aadan-pradan/config/*": ["../config/src/*"]
+    },
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
+  },
+  "include": ["src/**/*"]
+}

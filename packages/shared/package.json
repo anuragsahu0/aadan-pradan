@@ -1,0 +1,20 @@
+{
+  "name": "@aadan-pradan/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aadan-pradan/config": "*",
+    "@aadan-pradan/types": "*",
+    "@aadan-pradan/utils": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}

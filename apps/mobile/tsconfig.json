@@ -1,0 +1,19 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@aadan-pradan/types": ["../../packages/types/src"],
+      "@aadan-pradan/types/*": ["../../packages/types/src/*"],
+      "@aadan-pradan/config": ["../../packages/config/src"],
+      "@aadan-pradan/config/*": ["../../packages/config/src/*"],
+      "@aadan-pradan/utils": ["../../packages/utils/src"],
+      "@aadan-pradan/utils/*": ["../../packages/utils/src/*"],
+      "@aadan-pradan/shared": ["../../packages/shared/src"],
+      "@aadan-pradan/shared/*": ["../../packages/shared/src/*"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
+}

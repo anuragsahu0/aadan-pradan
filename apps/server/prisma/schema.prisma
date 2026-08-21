@@ -1,0 +1,123 @@
+// Aadan Pradan — Prisma Database Schema
+// Database: PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  username     String    @unique
+  displayName  String
+  email        String    @unique
+  passwordHash String
+  avatar       String?
+  role         String    @default("USER") // "USER" | "ADMIN"
+  status       String    @default("ACTIVE") // "ACTIVE" | "SUSPENDED"
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastSeenAt   DateTime?
+
+  memberships  FrequencyMembership[]
+  sessions     Session[]
+  deviceTokens DeviceToken[]
+
+  @@index([email])
+  @@index([username])
+  @@index([role])
+  @@index([status])
+  @@map("users")
+}
+
+model Session {
+  id               String    @id @default(cuid())
+  userId           String
+  refreshTokenHash String    @unique
+  deviceId         String?
+  userAgent        String?
+  expiresAt        DateTime
+  createdAt        DateTime  @default(now())
+  lastUsedAt       DateTime  @default(now())
+  revokedAt        DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model Frequency {
+  id            String   @id @default(cuid())
+  frequencyCode String   @unique // Virtual frequency code (e.g. "145.800")
+  name          String?
+  maxUsers      Int      @default(40) // Hard 40-user limit
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  lastActiveAt  DateTime @default(now())
+
+  memberships FrequencyMembership[]
+
+  @@index([frequencyCode])
+  @@index([isActive])
+  @@map("frequencies")
+}
+
+model FrequencyMembership {
+  id          String   @id @default(cuid())
+  userId      String
+  frequencyId String
+  joinedAt    DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+  status      String   @default("ACTIVE") // ACTIVE | LEFT | MUTED
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  frequency Frequency @relation(fields: [frequencyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, frequencyId])
+  @@index([frequencyId, status])
+  @@index([userId])
+  @@map("frequency_memberships")
+}
+
+model DeviceToken {
+  id         String   @id @default(cuid())
+  userId     String
+  token      String
+  platform   String   // 'ios' | 'android' | 'web'
+  deviceId   String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  lastUsedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, token])
+  @@index([userId, isActive])
+  @@map("device_tokens")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String?
+  action      String   // LOGIN, LOGOUT, LOGIN_FAILED, USER_SUSPENDED, USER_UNSUSPENDED, FREQUENCY_CREATED, FREQUENCY_DEACTIVATED, ADMIN_ACTION, PTT_SECURITY_EVENT
+  targetType  String?  // "USER", "FREQUENCY", "SYSTEM"
+  targetId    String?
+  metadata    String?  // JSON stringified sanitized metadata
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([actorUserId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

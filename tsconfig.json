@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@aadan-pradan/types": ["./packages/types/src"],
+      "@aadan-pradan/types/*": ["./packages/types/src/*"],
+      "@aadan-pradan/config": ["./packages/config/src"],
+      "@aadan-pradan/config/*": ["./packages/config/src/*"],
+      "@aadan-pradan/utils": ["./packages/utils/src"],
+      "@aadan-pradan/utils/*": ["./packages/utils/src/*"],
+      "@aadan-pradan/shared": ["./packages/shared/src"],
+      "@aadan-pradan/shared/*": ["./packages/shared/src/*"]
+    }
+  },
+  "exclude": ["node_modules", "**/dist", "**/build", "**/.expo"]
+}
