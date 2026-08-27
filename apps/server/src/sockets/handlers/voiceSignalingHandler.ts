@@ -156,13 +156,24 @@ export function registerVoiceSignalingHandlers(io: TypedServer, socket: TypedSoc
         '[Voice Signaling] Operator joined voice session room'
       );
 
+      // Find any peers already in the room so the joining client can connect to them
+      const socketsInRoom = await io.in(voiceRoom).fetchSockets();
+      const existingPeerIds = Array.from(
+        new Set(
+          socketsInRoom
+            .map((s) => s.data.userId)
+            .filter((id): id is string => Boolean(id && id !== userId))
+        )
+      );
+
       callback?.({
         success: true,
         config: {
           frequencyCode: normalized,
           iceServers,
           maxBitrate: 32000,
-        },
+          existingPeerIds,
+        } as any,
       });
     } catch (err: any) {
       logger.error({ err, socketId: socket.id }, '[Voice Signaling] Error processing voice:join');
@@ -171,6 +182,26 @@ export function registerVoiceSignalingHandlers(io: TypedServer, socket: TypedSoc
         code: 'SIGNALING_ERROR',
         message: 'Internal server error while joining voice room',
       });
+    }
+  });
+
+  // ─── Direct WebSocket Voice Chunk Relay (Failsafe Audio) ───────────────────
+  (socket as any).on('voice:chunk', (payload: { frequencyCode: string; chunk: any }) => {
+    try {
+      const userId = socket.data.userId;
+      if (!userId) return;
+
+      const normalized = normalizeFrequencyCode(payload.frequencyCode);
+      const voiceRoom = `voice:${normalized}`;
+
+      // Forward audio chunk to all other peers in the room
+      socket.to(voiceRoom).emit('voice:chunk' as any, {
+        frequencyCode: normalized,
+        senderId: userId,
+        chunk: payload.chunk,
+      });
+    } catch (err: any) {
+      logger.error({ err, socketId: socket.id }, '[Voice Signaling] Error relaying voice chunk');
     }
   });
 

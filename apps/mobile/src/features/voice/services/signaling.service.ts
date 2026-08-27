@@ -11,6 +11,7 @@ export interface SignalingCallbacks {
   onOffer?: (payload: { frequencyCode: string; senderPeerId: string; sdp: string }) => void;
   onAnswer?: (payload: { frequencyCode: string; senderPeerId: string; sdp: string }) => void;
   onIceCandidate?: (payload: { frequencyCode: string; senderPeerId: string; candidate: any }) => void;
+  onVoiceChunk?: (payload: { frequencyCode: string; senderId: string; chunk: any }) => void;
   onError?: (error: { code: string; message: string }) => void;
 }
 
@@ -70,12 +71,20 @@ class SignalingService {
     }
   }
 
+  public sendVoiceChunk(frequencyCode: string, chunk: any) {
+    const socket = socketManager.connect();
+    if (socket) {
+      socket.emit('voice:chunk' as any, { frequencyCode, chunk });
+    }
+  }
+
   private setupListeners(socket: any) {
     socket.on('voice:peer-joined', this.handlePeerJoined);
     socket.on('voice:peer-left', this.handlePeerLeft);
     socket.on('voice:offer', this.handleOffer);
     socket.on('voice:answer', this.handleAnswer);
     socket.on('voice:ice-candidate', this.handleIceCandidate);
+    socket.on('voice:chunk', this.handleVoiceChunk);
     socket.on('voice:error', this.handleError);
   }
 
@@ -85,6 +94,7 @@ class SignalingService {
     socket.off('voice:offer', this.handleOffer);
     socket.off('voice:answer', this.handleAnswer);
     socket.off('voice:ice-candidate', this.handleIceCandidate);
+    socket.off('voice:chunk', this.handleVoiceChunk);
     socket.off('voice:error', this.handleError);
   }
 
@@ -106,6 +116,10 @@ class SignalingService {
 
   private handleIceCandidate = (payload: any) => {
     this.callbacks.onIceCandidate?.(payload);
+  };
+
+  private handleVoiceChunk = (payload: any) => {
+    this.callbacks.onVoiceChunk?.(payload);
   };
 
   private handleError = (payload: any) => {

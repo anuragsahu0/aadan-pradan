@@ -89,7 +89,11 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       onError: (lastError) => set({ lastError, voiceStatus: 'FAILED' }),
     });
 
-    await webrtcService.initSession(frequencyCode, iceServers);
+    await webrtcService.initSession(
+      frequencyCode,
+      iceServers,
+      (signalRes.config as any)?.existingPeerIds
+    );
     set({ voiceStatus: 'CONNECTED' });
     return true;
   },

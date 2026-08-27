@@ -150,23 +150,81 @@ class WebRTCService {
     }
   }
 
+  private mediaRecorder: any = null;
+
   /**
    * Toggle audio transmission over established WebRTC peer connections (PTT floor control)
-   * Instantaneous 0ms un-mute
+   * Instantaneous 0ms un-mute with WebSocket chunk failsafe
    */
   public setAudioTransmission(enabled: boolean) {
     if (this.localStream) {
       this.localStream.getAudioTracks().forEach((track) => {
         track.enabled = enabled;
       });
+
+      this.peerConnections.forEach((pc) => {
+        const sender = pc.getSenders().find((s) => s.track === null || s.track?.kind === 'audio');
+        if (sender && this.localStream) {
+          const track = this.localStream.getAudioTracks()[0];
+          if (track && sender.track !== track) {
+            sender.replaceTrack(track).catch(() => {});
+          }
+        }
+      });
     }
     this.unlockAudioContext();
+
+    // WebSocket Audio Failsafe: Streams audio chunks over WebSocket
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof (window as any).MediaRecorder !== 'undefined') {
+      if (enabled && this.localStream && this.activeFrequency) {
+        try {
+          if (!this.mediaRecorder || this.mediaRecorder.state === 'inactive') {
+            const mimeType = (window as any).MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+              ? 'audio/webm;codecs=opus'
+              : (window as any).MediaRecorder.isTypeSupported('audio/webm')
+              ? 'audio/webm'
+              : '';
+
+            const mr = mimeType
+              ? new (window as any).MediaRecorder(this.localStream, { mimeType })
+              : new (window as any).MediaRecorder(this.localStream);
+
+            mr.ondataavailable = (e: any) => {
+              if (e.data && e.data.size > 0 && this.activeFrequency) {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                  if (reader.result && this.activeFrequency) {
+                    signalingService.sendVoiceChunk(this.activeFrequency, reader.result);
+                  }
+                };
+                reader.readAsArrayBuffer(e.data);
+              }
+            };
+            mr.start(250);
+            this.mediaRecorder = mr;
+          }
+        } catch {
+          // Fallback to WebRTC only
+        }
+      } else {
+        if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+          try {
+            this.mediaRecorder.stop();
+          } catch {}
+          this.mediaRecorder = null;
+        }
+      }
+    }
   }
 
   /**
    * Initialize WebRTC session for a frequency
    */
-  public async initSession(frequencyCode: string, iceServers: IceServerConfig[]) {
+  public async initSession(
+    frequencyCode: string,
+    iceServers: IceServerConfig[],
+    existingPeerIds?: string[]
+  ) {
     // If switching frequencies, clean up old peer connections for strict channel isolation
     if (this.activeFrequency && this.activeFrequency !== frequencyCode) {
       this.peerConnections.forEach((pc) => pc.close());
@@ -218,11 +276,27 @@ class WebRTCService {
           await this.handleIncomingIceCandidate(payload.senderPeerId, payload.candidate);
         }
       },
+      onVoiceChunk: (payload) => {
+        const myUserId = useAuthStore.getState().user?.id;
+        if (payload.frequencyCode === this.activeFrequency && payload.senderId !== myUserId) {
+          this.playAudioChunk(payload.chunk);
+        }
+      },
       onError: (err) => {
         this.callbacks.onError?.(err.message);
         this.updateState('FAILED');
       },
     });
+
+    // Connect to any existing peers already present in the frequency room
+    if (existingPeerIds && existingPeerIds.length > 0) {
+      const myUserId = useAuthStore.getState().user?.id;
+      for (const peerId of existingPeerIds) {
+        if (peerId !== myUserId) {
+          this.createOfferForPeer(peerId);
+        }
+      }
+    }
 
     this.updateState('CONNECTED');
   }
@@ -390,7 +464,13 @@ class WebRTCService {
         audioEl.autoplay = true;
         audioEl.setAttribute('playsinline', 'true');
         audioEl.setAttribute('webkit-playsinline', 'true');
-        audioEl.style.display = 'none';
+        audioEl.style.position = 'fixed';
+        audioEl.style.width = '1px';
+        audioEl.style.height = '1px';
+        audioEl.style.opacity = '0.01';
+        audioEl.style.pointerEvents = 'none';
+        audioEl.style.bottom = '0px';
+        audioEl.style.right = '0px';
         document.body.appendChild(audioEl);
         this.remoteAudioElements.set(peerId, audioEl);
       }
@@ -408,6 +488,27 @@ class WebRTCService {
       };
       window.addEventListener('touchstart', unlock, { once: true });
       window.addEventListener('click', unlock, { once: true });
+    }
+  }
+
+  private playAudioChunk(chunk: any) {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+
+    try {
+      const blob = new Blob([chunk], { type: 'audio/webm;codecs=opus' });
+      const audioUrl = URL.createObjectURL(blob);
+      const audio = new Audio(audioUrl);
+      audio.autoplay = true;
+      audio.volume = 1.0;
+      audio.onended = () => {
+        URL.revokeObjectURL(audioUrl);
+      };
+      audio.onerror = () => {
+        URL.revokeObjectURL(audioUrl);
+      };
+      audio.play().catch(() => {});
+    } catch {
+      // Non-fatal
     }
   }
 

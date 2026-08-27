@@ -73,12 +73,19 @@ export const usePttStore = create<PttState>((set, get) => ({
       socket.emit('ptt:request', { frequencyCode }, (res) => {
         if (res && !res.granted) {
           hapticFeedback.error();
+          webrtcService.setAudioTransmission(false);
           set({
             buttonState: res.error?.includes('busy') ? 'busy' : 'error',
             lastError: res.error || 'Channel floor busy',
+            isTalking: false,
           });
           resolve(false);
         } else {
+          webrtcService.setAudioTransmission(true);
+          set({
+            isTalking: true,
+            buttonState: 'talking',
+          });
           resolve(true);
         }
       });
@@ -86,8 +93,8 @@ export const usePttStore = create<PttState>((set, get) => ({
   },
 
   releaseTalk: (frequencyCode: string) => {
-    if (get().isTalking) {
-      webrtcService.setAudioTransmission(false);
+    webrtcService.setAudioTransmission(false);
+    if (get().isTalking || get().buttonState === 'talking') {
       hapticFeedback.light();
 
       if (countdownInterval) {
@@ -115,6 +122,7 @@ export const usePttStore = create<PttState>((set, get) => ({
 
     if (state.state === 'ACTIVE' && state.speaker) {
       const isSelf = state.speaker.id === currentUserId;
+      webrtcService.setAudioTransmission(isSelf);
       set({
         activeSpeaker: state.speaker,
         isBusy: !isSelf,
@@ -127,6 +135,7 @@ export const usePttStore = create<PttState>((set, get) => ({
         startCountdown(state.expiresAt);
       }
     } else {
+      webrtcService.setAudioTransmission(false);
       if (countdownInterval) {
         clearInterval(countdownInterval);
         countdownInterval = null;
