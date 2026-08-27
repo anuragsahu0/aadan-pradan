@@ -6,10 +6,13 @@ function getHostAddress(): string {
     return process.env.EXPO_PUBLIC_API_URL.replace(/\/api\/?$/, '');
   }
 
-  // 2. In Web browser, use the current page hostname or cloud backend if on vercel.app
+  // 2. In Web browser, use the current page hostname or Cloudflare cloud backend
   if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.hostname) {
     if (window.location.hostname.endsWith('vercel.app')) {
-      return 'https://559933b465d389.lhr.life';
+      return 'https://hash-assurance-crimes-hewlett.trycloudflare.com';
+    }
+    if (window.location.hostname.endsWith('trycloudflare.com')) {
+      return `https://${window.location.hostname}`;
     }
     return `http://${window.location.hostname}:5001`;
   }
