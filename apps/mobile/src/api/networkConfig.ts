@@ -9,7 +9,7 @@ function getHostAddress(): string {
   // 2. In Web browser, use the current page hostname or cloud backend if on vercel.app
   if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.hostname) {
     if (window.location.hostname.endsWith('vercel.app')) {
-      return 'https://96417ecc4b16c2.lhr.life';
+      return 'https://559933b465d389.lhr.life';
     }
     return `http://${window.location.hostname}:5001`;
   }
