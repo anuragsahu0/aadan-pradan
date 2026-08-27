@@ -16,18 +16,18 @@ const TabIcon: React.FC<TabIconProps> = ({ label, focused, iconSymbol }) => {
     <View style={{ alignItems: 'center', justifyContent: 'center', gap: 3, paddingTop: 4 }}>
       <Text
         style={{
-          fontSize: 18,
-          opacity: focused ? 1 : 0.65,
+          fontSize: 19,
+          opacity: focused ? 1 : 0.55,
         }}
       >
         {iconSymbol}
       </Text>
       <Text
         style={{
-          fontSize: typography.fontSize.xxs,
+          fontSize: 11,
           fontWeight: focused ? '800' : '600',
-          color: focused ? colors.primary : colors.textMuted,
-          letterSpacing: 0.8,
+          color: focused ? '#FF7A00' : '#64748B',
+          letterSpacing: 0.4,
         }}
       >
         {label}
@@ -38,7 +38,7 @@ const TabIcon: React.FC<TabIconProps> = ({ label, focused, iconSymbol }) => {
             width: 14,
             height: 2.5,
             borderRadius: 1.5,
-            backgroundColor: colors.primary,
+            backgroundColor: '#FF7A00',
             marginTop: 1,
           }}
         />
@@ -55,10 +55,10 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: colors.tabBarBackground,
-          borderTopColor: colors.tabBarBorder,
-          borderTopWidth: 1.5,
-          height: 66,
+          backgroundColor: '#0F1218',
+          borderTopColor: '#1A212B',
+          borderTopWidth: 1,
+          height: 64,
           paddingBottom: 8,
           paddingTop: 4,
         },
@@ -69,39 +69,52 @@ export default function TabsLayout() {
         name="index"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon label="HOME" focused={focused} iconSymbol="🏠" />
+            <TabIcon label="Home" focused={focused} iconSymbol="🏠" />
           ),
           tabBarAccessibilityLabel: 'Home Tab',
         }}
       />
       <Tabs.Screen
-        name="frequency"
+        name="channels"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon label="FREQUENCY" focused={focused} iconSymbol="📻" />
+            <TabIcon label="Channels" focused={focused} iconSymbol="📻" />
           ),
-          tabBarAccessibilityLabel: 'Frequency Walkie Talkie Tab',
+          tabBarAccessibilityLabel: 'Channels Directory Tab',
         }}
       />
       <Tabs.Screen
-        name="activity"
+        name="people"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon label="ACTIVITY" focused={focused} iconSymbol="📊" />
+            <TabIcon label="People" focused={focused} iconSymbol="👥" />
           ),
-          tabBarAccessibilityLabel: 'Activity Log Tab',
+          tabBarAccessibilityLabel: 'People Directory Tab',
         }}
       />
       <Tabs.Screen
         name="me"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon label="ME" focused={focused} iconSymbol="👤" />
+            <TabIcon label="Profile" focused={focused} iconSymbol="👤" />
           ),
-          tabBarAccessibilityLabel: 'Profile and Settings Tab',
+          tabBarAccessibilityLabel: 'Profile Tab',
         }}
       />
-      {/* Hidden legacy tab mappings for clean router redirection */}
+
+      {/* Legacy and auxiliary routes */}
+      <Tabs.Screen
+        name="frequency"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="activity"
+        options={{
+          href: null,
+        }}
+      />
       <Tabs.Screen
         name="profile"
         options={{

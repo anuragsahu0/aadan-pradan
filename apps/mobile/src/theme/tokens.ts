@@ -47,52 +47,52 @@ export interface ThemeColors {
 }
 
 export const darkColors: ThemeColors = {
-  // Deep tactical slate background
+  // Deep obsidian black background
   background: '#080C14',
-  surface: '#0F1623',
-  surfaceElevated: '#172235',
-  surfaceSubtle: '#121A2A',
-  surfaceBezel: '#1E293B',
+  surface: '#151A23',
+  surfaceElevated: '#1C2330',
+  surfaceSubtle: '#11151D',
+  surfaceBezel: '#222B3A',
 
   // Borders
-  border: '#1E2D42',
-  borderStrong: '#334A6A',
-  borderFocus: '#00E5FF',
+  border: '#232A38',
+  borderStrong: '#364257',
+  borderFocus: '#FF7A00',
 
-  // Primary Tactical Accents
-  primary: '#00E5FF', // Neon Cyan / Signal Blue
-  primaryMuted: 'rgba(0, 229, 255, 0.15)',
-  primaryGlow: 'rgba(0, 229, 255, 0.3)',
+  // Primary Brand Orange Accents (from reference image)
+  primary: '#FF7A00',
+  primaryMuted: 'rgba(255, 122, 0, 0.15)',
+  primaryGlow: 'rgba(255, 122, 0, 0.35)',
 
   // Secondary & Radio Status Colors
-  amber: '#FFB300', // Radio Amber
-  amberMuted: 'rgba(255, 179, 0, 0.15)',
-  amberGlow: 'rgba(255, 179, 0, 0.3)',
+  amber: '#FFA000',
+  amberMuted: 'rgba(255, 160, 0, 0.15)',
+  amberGlow: 'rgba(255, 160, 0, 0.3)',
 
-  emerald: '#00E676', // Live Transmission Emerald
-  emeraldMuted: 'rgba(0, 230, 118, 0.15)',
-  emeraldGlow: 'rgba(0, 230, 118, 0.35)',
+  emerald: '#22C55E', // Live Transmission Neon Green
+  emeraldMuted: 'rgba(34, 197, 94, 0.15)',
+  emeraldGlow: 'rgba(34, 197, 94, 0.35)',
 
-  crimson: '#FF3366', // Alert / Disconnect Crimson
-  crimsonMuted: 'rgba(255, 51, 102, 0.15)',
+  crimson: '#EF4444', // End call / Alert Crimson
+  crimsonMuted: 'rgba(239, 68, 68, 0.15)',
 
   // LCD Screen Colors (for Frequency Readouts)
-  lcdBackground: '#050D15',
+  lcdBackground: '#080C12',
   lcdText: '#00FFCC',
-  lcdTextDim: 'rgba(0, 255, 204, 0.25)',
-  lcdBorder: 'rgba(0, 255, 204, 0.25)',
+  lcdTextDim: 'rgba(0, 229, 255, 0.25)',
+  lcdBorder: 'rgba(0, 229, 255, 0.25)',
 
   // Typography Colors
-  textPrimary: '#F1F5F9',
+  textPrimary: '#FFFFFF',
   textSecondary: '#94A3B8',
   textMuted: '#64748B',
   textDisabled: '#475569',
-  textInverse: '#080C14',
+  textInverse: '#0B0E14',
 
-  tabBarBackground: '#0B111D',
-  tabBarBorder: '#1A2638',
-  cardHighlight: 'rgba(0, 229, 255, 0.05)',
-  overlay: 'rgba(8, 12, 20, 0.85)',
+  tabBarBackground: '#0F1218',
+  tabBarBorder: '#1A212B',
+  cardHighlight: 'rgba(255, 122, 0, 0.06)',
+  overlay: 'rgba(11, 14, 20, 0.88)',
 };
 
 export const lightColors: ThemeColors = {
