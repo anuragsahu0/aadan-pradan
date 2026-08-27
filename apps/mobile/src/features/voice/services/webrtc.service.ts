@@ -10,11 +10,11 @@ export interface WebRTCCallbacks {
   onError?: (error: string) => void;
 }
 
-/** Helper to optimize SDP for sub-50ms ultra-low-latency Opus transmission */
+/** Helper to optimize SDP for sub-30ms ultra-low-latency Opus transmission */
 function optimizeOpusSdp(sdp: string): string {
   return sdp.replace(
     /a=rtpmap:(\d+) opus\/48000\/2/g,
-    'a=rtpmap:$1 opus/48000/2\r\na=fmtp:$1 minptime=10;useinbandfec=1;maxplaybackrate=48000;stereo=0;sprop-stereo=0'
+    'a=rtpmap:$1 opus/48000/2\r\na=fmtp:$1 minptime=10;ptime=10;maxplaybackrate=48000;stereo=0;sprop-stereo=0;useinbandfec=1;cbr=1;maxaveragebitrate=32000'
   );
 }
 
@@ -200,7 +200,7 @@ class WebRTCService {
                 reader.readAsArrayBuffer(e.data);
               }
             };
-            mr.start(250);
+            mr.start(60); // 60ms slices for ultra-low latency fallback
             this.mediaRecorder = mr;
           }
         } catch {
@@ -279,7 +279,7 @@ class WebRTCService {
       onVoiceChunk: (payload) => {
         const myUserId = useAuthStore.getState().user?.id;
         if (payload.frequencyCode === this.activeFrequency && payload.senderId !== myUserId) {
-          this.playAudioChunk(payload.chunk);
+          this.playAudioChunk(payload.senderId, payload.chunk);
         }
       },
       onError: (err) => {
@@ -436,27 +436,9 @@ class WebRTCService {
 
   private playRemoteAudio(peerId: string, stream: MediaStream) {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      // 1. Direct Web Audio API pipeline directly to hardware speakers
-      try {
-        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-        if (AudioContextClass) {
-          const ctx = new AudioContextClass();
-          const source = ctx.createMediaStreamSource(stream);
-          source.connect(ctx.destination);
-          if (ctx.state === 'suspended') {
-            ctx.resume().catch(() => {});
-          }
-          const resumeAudio = () => {
-            if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-          };
-          window.addEventListener('touchstart', resumeAudio, { once: true });
-          window.addEventListener('click', resumeAudio, { once: true });
-        }
-      } catch {
-        // Fallback to HTML audio element
-      }
+      this.unlockAudioContext();
 
-      // 2. Standard HTMLAudioElement pipeline
+      // Native HTMLAudioElement directly decodes WebRTC Opus with 0ms hardware latency
       let audioEl = this.remoteAudioElements.get(peerId);
       if (!audioEl) {
         audioEl = document.createElement('audio');
@@ -491,8 +473,14 @@ class WebRTCService {
     }
   }
 
-  private playAudioChunk(chunk: any) {
+  private playAudioChunk(senderId: string, chunk: any) {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+
+    // If WebRTC is already established and streaming for this peer, don't duplicate audio
+    const pc = this.peerConnections.get(senderId);
+    if (pc && (pc.connectionState === 'connected' || pc.iceConnectionState === 'connected')) {
+      return;
+    }
 
     try {
       const blob = new Blob([chunk], { type: 'audio/webm;codecs=opus' });

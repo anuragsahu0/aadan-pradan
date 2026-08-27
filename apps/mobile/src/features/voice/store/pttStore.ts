@@ -32,6 +32,7 @@ interface PttState {
 
 let countdownInterval: ReturnType<typeof setInterval> | null = null;
 let listenersInitialized = false;
+let userHoldingFloor = false;
 
 export const usePttStore = create<PttState>((set, get) => ({
   buttonState: 'idle',
@@ -54,24 +55,40 @@ export const usePttStore = create<PttState>((set, get) => ({
       return false;
     }
 
-    set({ buttonState: 'requesting', lastError: null });
+    userHoldingFloor = true;
+
+    // Optimistically activate talking state in 0ms
+    set({ buttonState: 'talking', isTalking: true, lastError: null });
+    webrtcService.unlockAudioContext();
+    webrtcService.setAudioTransmission(true);
 
     // Initialize socket listeners if not already done
     ensureSocketListeners();
 
-    // Prepare audio track (unlock mobile audio context & capture microphone)
-    webrtcService.unlockAudioContext();
-    await webrtcService.startLocalAudio();
+    // Ensure audio track is capturing in background
+    webrtcService.startLocalAudio().catch(() => {});
 
     const socket = socketManager.connect();
     if (!socket) {
-      set({ buttonState: 'error', lastError: 'Socket disconnected' });
+      userHoldingFloor = false;
+      webrtcService.setAudioTransmission(false);
+      set({ buttonState: 'error', isTalking: false, lastError: 'Socket disconnected' });
       return false;
     }
 
     return new Promise((resolve) => {
       socket.emit('ptt:request', { frequencyCode }, (res) => {
+        // If user already released touch before network response:
+        if (!userHoldingFloor) {
+          socket.emit('ptt:release', { frequencyCode });
+          webrtcService.setAudioTransmission(false);
+          set({ buttonState: get().activeSpeaker ? 'busy' : 'idle', isTalking: false });
+          resolve(false);
+          return;
+        }
+
         if (res && !res.granted) {
+          userHoldingFloor = false;
           hapticFeedback.error();
           webrtcService.setAudioTransmission(false);
           set({
@@ -93,28 +110,24 @@ export const usePttStore = create<PttState>((set, get) => ({
   },
 
   releaseTalk: (frequencyCode: string) => {
+    userHoldingFloor = false;
     webrtcService.setAudioTransmission(false);
-    if (get().isTalking || get().buttonState === 'talking') {
-      hapticFeedback.light();
 
-      if (countdownInterval) {
-        clearInterval(countdownInterval);
-        countdownInterval = null;
-      }
-
-      const socket = socketManager.connect();
-      if (socket) {
-        socket.emit('ptt:release', { frequencyCode });
-      }
-
-      set({
-        isTalking: false,
-        buttonState: get().activeSpeaker ? 'busy' : 'idle',
-        remainingSeconds: Math.floor(MAX_TALK_DURATION_MS / 1000),
-      });
-    } else if (get().buttonState === 'requesting') {
-      set({ buttonState: get().activeSpeaker ? 'busy' : 'idle' });
+    if (countdownInterval) {
+      clearInterval(countdownInterval);
+      countdownInterval = null;
     }
+
+    const socket = socketManager.connect();
+    if (socket) {
+      socket.emit('ptt:release', { frequencyCode });
+    }
+
+    set({
+      isTalking: false,
+      buttonState: get().activeSpeaker ? 'busy' : 'idle',
+      remainingSeconds: Math.floor(MAX_TALK_DURATION_MS / 1000),
+    });
   },
 
   setPttState: (state: PttStatePayload) => {

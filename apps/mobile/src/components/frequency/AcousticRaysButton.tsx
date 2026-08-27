@@ -120,15 +120,36 @@ export const AcousticRaysButton: React.FC<AcousticRaysButtonProps> = ({
           isTalking ? 'Transmitting audio. Release to mute.' : 'Hold to talk'
         }
         disabled={isDisabled}
+        delayPressIn={0}
         onPressIn={onPressIn}
         onPressOut={onPressOut}
         {...({
-          onTouchEnd: onPressOut,
-          onTouchCancel: onPressOut,
-          onMouseUp: onPressOut,
-          onMouseLeave: onPressOut,
+          onTouchStart: (e: any) => {
+            e?.stopPropagation?.();
+            if (!isDisabled) onPressIn();
+          },
+          onTouchEnd: (e: any) => {
+            e?.stopPropagation?.();
+            onPressOut();
+          },
+          onTouchCancel: (e: any) => {
+            e?.stopPropagation?.();
+            onPressOut();
+          },
+          onMouseDown: (e: any) => {
+            e?.preventDefault?.();
+            if (!isDisabled) onPressIn();
+          },
+          onMouseUp: (e: any) => {
+            e?.preventDefault?.();
+            onPressOut();
+          },
+          onMouseLeave: (e: any) => {
+            e?.preventDefault?.();
+            onPressOut();
+          },
           onContextMenu: (e: any) => {
-            e.preventDefault?.();
+            e?.preventDefault?.();
             return false;
           },
         } as any)}
@@ -141,8 +162,8 @@ export const AcousticRaysButton: React.FC<AcousticRaysButtonProps> = ({
           },
         ]}
       >
-        {/* Inner Dark Surface with Radial Gradient Feel */}
-        <View style={styles.innerSurface}>
+        {/* Inner Dark Surface with Radial Gradient Feel (pointerEvents none so touches never get blocked) */}
+        <View style={styles.innerSurface} pointerEvents="none">
           {isRequesting ? (
             <View style={styles.centerCol}>
               <ActivityIndicator color="#FF7A00" size="large" />

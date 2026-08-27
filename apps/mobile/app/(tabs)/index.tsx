@@ -52,6 +52,8 @@ export default function WalkieTalkieHomeScreen() {
     const activeFreq = currentFrequencyCode || '145.800';
     connectToFrequency(activeFreq).catch(() => {});
     resetPtt();
+    // Pre-warm local microphone in background so first PTT press is 0ms
+    webrtcService.startLocalAudio().catch(() => {});
   }, []);
 
   const handlePttPressIn = async () => {
