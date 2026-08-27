@@ -113,23 +113,20 @@ export const AcousticRaysButton: React.FC<AcousticRaysButtonProps> = ({
         ]}
       />
 
-      {/* Main Interactive Button (Supports both Push-to-Hold and Tap-to-Talk) */}
+      {/* Main Interactive Button (Strict Push-and-Hold Walkie-Talkie) */}
       <Pressable
         accessibilityRole={'button' as AccessibilityRole}
         accessibilityLabel={
-          isTalking ? 'Transmitting audio. Tap or release to finish.' : 'Hold or tap to talk'
+          isTalking ? 'Transmitting audio. Release to mute.' : 'Hold to talk'
         }
         disabled={isDisabled}
         onPressIn={onPressIn}
         onPressOut={onPressOut}
-        onPress={() => {
-          if (isTalking) {
-            onPressOut();
-          } else if (!isDisabled) {
-            onPressIn();
-          }
-        }}
         {...({
+          onTouchEnd: onPressOut,
+          onTouchCancel: onPressOut,
+          onMouseUp: onPressOut,
+          onMouseLeave: onPressOut,
           onContextMenu: (e: any) => {
             e.preventDefault?.();
             return false;
@@ -155,13 +152,10 @@ export const AcousticRaysButton: React.FC<AcousticRaysButtonProps> = ({
             </View>
           ) : isTalking ? (
             <View style={styles.centerCol}>
-              <Text style={{ fontSize: 36 }}>🎙️</Text>
+              <Text style={{ fontSize: 40 }}>🎙️</Text>
               <Text style={[styles.mainLabel, { color: '#22C55E' }]}>LIVE</Text>
-              <Text style={styles.countdownText}>
-                00:{remainingSeconds.toString().padStart(2, '0')}
-              </Text>
-              <Text style={[styles.statusSubtext, { color: '#22C55E', fontSize: 10 }]}>
-                TAP OR RELEASE TO END
+              <Text style={[styles.statusSubtext, { color: '#22C55E', fontSize: 11, marginTop: 4, fontWeight: '700' }]}>
+                RELEASE TO MUTE
               </Text>
             </View>
           ) : isBusy ? (
@@ -179,7 +173,6 @@ export const AcousticRaysButton: React.FC<AcousticRaysButtonProps> = ({
                 <Text style={styles.micEmoji}>🎙️</Text>
               </View>
               <Text style={styles.holdToTalkText}>Hold to Talk</Text>
-              <Text style={[styles.statusSubtext, { fontSize: 10 }]}>OR TAP TO TALK</Text>
             </View>
           )}
         </View>

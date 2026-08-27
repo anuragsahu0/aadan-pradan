@@ -131,13 +131,11 @@ export const LiveTransmissionModal: React.FC<LiveTransmissionModalProps> = ({
                 />
               ))}
             </View>
-            <Text style={styles.liveTag}>Live</Text>
-            <Text style={styles.timerText}>
-              00:{remainingSeconds.toString().padStart(2, '0')}
-            </Text>
+            <Text style={styles.liveTag}>LIVE</Text>
+            <Text style={styles.liveTagSub}>VOICE STREAM</Text>
           </View>
           <Text style={styles.talkingStatus}>
-            {isTalking ? 'Transmitting...' : 'Talking...'}
+            {isTalking ? 'Transmitting Live' : `${activeSpeaker?.displayName || 'Operator'} is Speaking`}
           </Text>
         </View>
 
@@ -342,12 +340,11 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
-  timerText: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    fontVariant: ['tabular-nums'],
-    letterSpacing: 1,
+  liveTagSub: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#8E9BAE',
+    letterSpacing: 1.5,
     marginTop: 2,
   },
   talkingStatus: {

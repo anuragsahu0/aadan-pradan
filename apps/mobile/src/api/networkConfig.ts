@@ -9,7 +9,7 @@ function getHostAddress(): string {
   // 2. In Web browser, use the current page hostname or Cloudflare cloud backend
   if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.hostname) {
     if (window.location.hostname.endsWith('vercel.app')) {
-      return 'https://hash-assurance-crimes-hewlett.trycloudflare.com';
+      return 'https://dress-logging-investigators-packets.trycloudflare.com';
     }
     if (window.location.hostname.endsWith('trycloudflare.com')) {
       return `https://${window.location.hostname}`;
