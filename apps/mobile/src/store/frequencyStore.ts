@@ -11,6 +11,7 @@ import {
 } from '../api/frequencyApi';
 import { socketService } from '../services/socketService';
 import { useVoiceStore } from '../features/voice/store/voiceStore';
+import { useAuthStore } from './authStore';
 
 export type FrequencyConnectionStatus =
   | 'IDLE'
@@ -93,6 +94,11 @@ export const useFrequencyStore = create<FrequencyState>((set, get) => ({
     });
 
     try {
+      // 0. Ensure user has a valid operator callsign and token before joining
+      if (!useAuthStore.getState().accessToken) {
+        await useAuthStore.getState().autoAssignGuest();
+      }
+
       // 1. REST Atomic Join with Hard 40-User Limit
       const joinRes = await joinFrequencyApi(normalized);
 
@@ -151,6 +157,16 @@ export const useFrequencyStore = create<FrequencyState>((set, get) => ({
 
       return true;
     } catch (err: any) {
+      // If auth or token error, automatically assign guest and retry seamlessly
+      if (err.message?.includes('token') || err.message?.includes('auth') || err.status === 401) {
+        try {
+          await useAuthStore.getState().autoAssignGuest();
+          return await get().connectToFrequency(code);
+        } catch {
+          // Fall through to error state
+        }
+      }
+
       const isFull =
         err.message?.includes('full') ||
         err.message?.includes('capacity') ||
@@ -160,7 +176,7 @@ export const useFrequencyStore = create<FrequencyState>((set, get) => ({
         connectionStatus: isFull ? 'FULL' : 'ERROR',
         errorMessage: isFull
           ? `Virtual frequency ${normalized} has reached maximum capacity of ${MAX_USERS_PER_FREQUENCY} users.`
-          : err.message || 'Failed to connect to virtual frequency.',
+          : (err.message?.includes('token') ? null : (err.message || 'Failed to connect to virtual frequency.')),
       });
 
       return false;

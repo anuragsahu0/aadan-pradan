@@ -96,7 +96,7 @@ export default function FrequencyScreen() {
         />
 
         {/* Capacity or PTT Error Banner */}
-        {(errorMessage || pttError) && (
+        {(errorMessage || pttError) && !errorMessage?.toLowerCase().includes('token') && (
           <View
             style={{
               backgroundColor: colors.crimsonMuted,

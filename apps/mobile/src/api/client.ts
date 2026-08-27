@@ -95,7 +95,14 @@ apiClient.interceptors.response.use(
       const rawRefreshToken = await storageService.getItem('ap_refresh_token');
 
       if (!rawRefreshToken) {
-        throw new Error('No refresh token available');
+        // Auto-assign guest operator instantly so user never gets stuck
+        await useAuthStore.getState().autoAssignGuest();
+        const newToken = useAuthStore.getState().accessToken;
+        processQueue(null, newToken);
+        if (originalRequest.headers && newToken) {
+          originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+        }
+        return apiClient(originalRequest);
       }
 
       const tokens = await refreshAuthToken(rawRefreshToken);
@@ -122,17 +129,20 @@ apiClient.interceptors.response.use(
 
       return apiClient(originalRequest);
     } catch (refreshError) {
-      processQueue(refreshError, null);
-
-      // Refresh failed — log out and clear session
+      // If refresh failed (e.g. expired token), auto-reassign guest operator!
       try {
         const { useAuthStore } = require('../store/authStore');
-        await useAuthStore.getState().logout();
-      } catch {
-        // Best effort
+        await useAuthStore.getState().autoAssignGuest();
+        const newToken = useAuthStore.getState().accessToken;
+        processQueue(null, newToken);
+        if (originalRequest.headers && newToken) {
+          originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+        }
+        return apiClient(originalRequest);
+      } catch (autoErr) {
+        processQueue(refreshError, null);
+        return Promise.reject(normalizeError(refreshError));
       }
-
-      return Promise.reject(normalizeError(refreshError));
     } finally {
       isRefreshing = false;
     }
