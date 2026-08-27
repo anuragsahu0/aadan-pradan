@@ -6,8 +6,11 @@ function getHostAddress(): string {
     return process.env.EXPO_PUBLIC_API_URL.replace(/\/api\/?$/, '');
   }
 
-  // 2. In Web browser, use the current page hostname (e.g., 192.168.1.34 or localhost)
+  // 2. In Web browser, use the current page hostname or cloud backend if on vercel.app
   if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.hostname) {
+    if (window.location.hostname.endsWith('vercel.app')) {
+      return 'https://96417ecc4b16c2.lhr.life';
+    }
     return `http://${window.location.hostname}:5001`;
   }
 
@@ -26,7 +29,7 @@ function getHostAddress(): string {
   }
 
   // 4. Default fallback to local LAN IP
-  return 'http://192.168.1.34:5001';
+  return 'http://192.168.1.40:5001';
 }
 
 const BASE_URL = getHostAddress();
