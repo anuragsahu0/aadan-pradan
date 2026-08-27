@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import type { IceServerConfig, VoiceConnectionState } from '../types/voice.types';
 import { signalingService } from './signaling.service';
+import { useAuthStore } from '../../../store/authStore';
 
 export interface WebRTCCallbacks {
   onConnectionStateChange?: (state: VoiceConnectionState) => void;
@@ -11,7 +12,6 @@ export interface WebRTCCallbacks {
 
 /** Helper to optimize SDP for sub-50ms ultra-low-latency Opus transmission */
 function optimizeOpusSdp(sdp: string): string {
-  // Enforce 10ms packet time, FEC, and mono low-latency Opus
   return sdp.replace(
     /a=rtpmap:(\d+) opus\/48000\/2/g,
     'a=rtpmap:$1 opus/48000/2\r\na=fmtp:$1 minptime=10;useinbandfec=1;maxplaybackrate=48000;stereo=0;sprop-stereo=0'
@@ -22,7 +22,13 @@ class WebRTCService {
   private localStream: MediaStream | null = null;
   private peerConnections = new Map<string, RTCPeerConnection>();
   private remoteAudioElements = new Map<string, HTMLAudioElement>();
-  private iceServers: IceServerConfig[] = [{ urls: 'stun:stun.l.google.com:19302' }];
+  private iceServers: IceServerConfig[] = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun.relay.metered.ca:80' },
+    { urls: 'stun:global.stun.twilio.com:3478' },
+  ];
   private activeFrequency: string | null = null;
   private callbacks: WebRTCCallbacks = {};
   private connectionState: VoiceConnectionState = 'NEW';
@@ -60,7 +66,6 @@ class WebRTCService {
           ctx.resume().catch(() => {});
         }
       }
-      // Resume all remote audio elements
       this.remoteAudioElements.forEach((el) => {
         el.play().catch(() => {});
       });
@@ -70,7 +75,7 @@ class WebRTCService {
   }
 
   /**
-   * Acquire local microphone audio stream with Opus optimization
+   * Acquire local microphone audio stream with clean cross-platform constraints
    */
   public async startLocalAudio(): Promise<MediaStream | null> {
     if (this.localStream && this.localStream.getAudioTracks().some((t) => t.readyState === 'live')) {
@@ -84,10 +89,7 @@ class WebRTCService {
             echoCancellation: true,
             noiseSuppression: true,
             autoGainControl: true,
-            channelCount: 1,
-            sampleRate: 48000,
-            latency: 0,
-          } as any,
+          },
           video: false,
         });
 
@@ -98,20 +100,22 @@ class WebRTCService {
 
         this.localStream = stream;
 
-        // Attach local tracks to all existing peer connections
-        this.peerConnections.forEach((pc) => {
-          stream.getAudioTracks().forEach((track) => {
-            const senders = pc.getSenders();
-            const exists = senders.some((s) => s.track?.id === track.id);
-            if (!exists) {
+        // Attach local track to all existing peer connection senders in 0ms
+        const audioTrack = stream.getAudioTracks()[0];
+        if (audioTrack) {
+          this.peerConnections.forEach((pc) => {
+            const sender = pc.getSenders().find((s) => s.track === null || s.track?.kind === 'audio');
+            if (sender) {
+              sender.replaceTrack(audioTrack).catch(() => {});
+            } else {
               try {
-                pc.addTrack(track, stream);
+                pc.addTrack(audioTrack, stream);
               } catch {
-                // Ignore if already attached
+                // Ignore
               }
             }
           });
-        });
+        }
 
         return stream;
       }
@@ -144,7 +148,6 @@ class WebRTCService {
         track.enabled = enabled;
       });
     }
-    // Also ensure audio is unlocked on mobile
     this.unlockAudioContext();
   }
 
@@ -165,33 +168,41 @@ class WebRTCService {
     }
 
     this.activeFrequency = frequencyCode;
-    this.iceServers = iceServers;
+    if (iceServers && iceServers.length > 0) {
+      this.iceServers = iceServers;
+    }
     this.updateState('CONNECTING');
 
-    // Pre-warm local microphone in background so WebRTC offer/answer negotiation has audio tracks ready
+    // Pre-warm local microphone in background
     this.startLocalAudio().catch(() => {});
 
     // Register signaling callbacks
     signalingService.setCallbacks({
       onPeerJoined: (payload) => {
-        this.createOfferForPeer(payload.peerId);
+        const myUserId = useAuthStore.getState().user?.id;
+        if (payload.peerId !== myUserId) {
+          this.createOfferForPeer(payload.peerId);
+        }
       },
       onPeerLeft: (payload) => {
         this.closePeer(payload.peerId);
         this.callbacks.onPeerLeft?.(payload.peerId);
       },
       onOffer: async (payload) => {
-        if (payload.frequencyCode === this.activeFrequency) {
+        const myUserId = useAuthStore.getState().user?.id;
+        if (payload.frequencyCode === this.activeFrequency && payload.senderPeerId !== myUserId) {
           await this.handleIncomingOffer(payload.senderPeerId, payload.sdp);
         }
       },
       onAnswer: async (payload) => {
-        if (payload.frequencyCode === this.activeFrequency) {
+        const myUserId = useAuthStore.getState().user?.id;
+        if (payload.frequencyCode === this.activeFrequency && payload.senderPeerId !== myUserId) {
           await this.handleIncomingAnswer(payload.senderPeerId, payload.sdp);
         }
       },
       onIceCandidate: async (payload) => {
-        if (payload.frequencyCode === this.activeFrequency) {
+        const myUserId = useAuthStore.getState().user?.id;
+        if (payload.frequencyCode === this.activeFrequency && payload.senderPeerId !== myUserId) {
           await this.handleIncomingIceCandidate(payload.senderPeerId, payload.candidate);
         }
       },
@@ -211,13 +222,19 @@ class WebRTCService {
       iceServers: this.iceServers,
     });
 
+    // Always add an audio transceiver so the peer connection negotiates bidirectional audio
+    try {
+      pc.addTransceiver('audio', { direction: 'sendrecv' });
+    } catch {
+      // Fallback for older browsers
+    }
+
     // Handle incoming remote audio track
     pc.ontrack = (event) => {
       const [remoteStream] = event.streams;
-      if (remoteStream) {
-        this.playRemoteAudio(peerId, remoteStream);
-        this.callbacks.onRemoteStream?.(peerId, remoteStream);
-      }
+      const streamToPlay = remoteStream || new MediaStream([event.track]);
+      this.playRemoteAudio(peerId, streamToPlay);
+      this.callbacks.onRemoteStream?.(peerId, streamToPlay);
     };
 
     // Trickle ICE Candidate
@@ -235,15 +252,21 @@ class WebRTCService {
       }
     };
 
-    // Add local audio tracks if available
+    // Add local audio track if already captured
     if (this.localStream) {
-      this.localStream.getAudioTracks().forEach((track) => {
-        try {
-          pc.addTrack(track, this.localStream!);
-        } catch {
-          // Already attached
+      const track = this.localStream.getAudioTracks()[0];
+      if (track) {
+        const sender = pc.getSenders().find((s) => s.track === null || s.track?.kind === 'audio');
+        if (sender) {
+          sender.replaceTrack(track).catch(() => {});
+        } else {
+          try {
+            pc.addTrack(track, this.localStream);
+          } catch {
+            // Already attached
+          }
         }
-      });
+      }
     }
 
     this.peerConnections.set(peerId, pc);
@@ -253,7 +276,6 @@ class WebRTCService {
   public async createOfferForPeer(peerId: string) {
     if (!this.activeFrequency) return;
 
-    // Ensure local stream is ready
     if (!this.localStream) {
       await this.startLocalAudio();
     }
@@ -331,29 +353,30 @@ class WebRTCService {
       let audioEl = this.remoteAudioElements.get(peerId);
       if (!audioEl) {
         audioEl = document.createElement('audio');
+        audioEl.id = `remote-audio-${peerId}`;
         audioEl.autoplay = true;
         audioEl.setAttribute('playsinline', 'true');
         audioEl.setAttribute('webkit-playsinline', 'true');
-        audioEl.style.display = 'none';
+        audioEl.style.position = 'fixed';
+        audioEl.style.top = '-9999px';
+        audioEl.style.left = '-9999px';
         document.body.appendChild(audioEl);
         this.remoteAudioElements.set(peerId, audioEl);
       }
       audioEl.srcObject = stream;
+      audioEl.muted = false;
       audioEl.volume = 1.0;
 
-      const playPromise = audioEl.play();
-      if (playPromise) {
-        playPromise.catch(() => {
-          // Auto-unlock on next user tap on mobile
-          const unlock = () => {
-            audioEl?.play().catch(() => {});
-            document.removeEventListener('touchstart', unlock);
-            document.removeEventListener('click', unlock);
-          };
-          document.addEventListener('touchstart', unlock, { once: true });
-          document.addEventListener('click', unlock, { once: true });
-        });
-      }
+      const playAudio = () => {
+        audioEl?.play().catch(() => {});
+      };
+      playAudio();
+
+      const unlock = () => {
+        playAudio();
+      };
+      window.addEventListener('touchstart', unlock, { once: true });
+      window.addEventListener('click', unlock, { once: true });
     }
   }
 

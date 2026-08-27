@@ -59,7 +59,8 @@ export const usePttStore = create<PttState>((set, get) => ({
     // Initialize socket listeners if not already done
     ensureSocketListeners();
 
-    // Prepare audio track (capture microphone)
+    // Prepare audio track (unlock mobile audio context & capture microphone)
+    webrtcService.unlockAudioContext();
     await webrtcService.startLocalAudio();
 
     const socket = socketManager.connect();
