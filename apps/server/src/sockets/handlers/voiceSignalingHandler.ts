@@ -27,12 +27,22 @@ const socketVoiceRooms = new Map<string, string>();
 export function getIceServers(): IceServerConfig[] {
   const servers: IceServerConfig[] = [
     { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-    { urls: 'stun:stun3.l.google.com:19302' },
-    { urls: 'stun:stun4.l.google.com:19302' },
-    { urls: 'stun:stun.relay.metered.ca:80' },
-    { urls: 'stun:global.stun.twilio.com:3478' },
+    { urls: 'stun:openrelay.metered.ca:80' },
+    {
+      urls: 'turn:openrelay.metered.ca:80',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
   ];
   if (env.WEBRTC_TURN_URL) {
     servers.push({
@@ -225,6 +235,11 @@ export function registerVoiceSignalingHandlers(io: TypedServer, socket: TypedSoc
       const { frequencyCode, targetPeerId, candidate } = payload;
       const normalized = normalizeFrequencyCode(frequencyCode);
       const voiceRoom = `voice:${normalized}`;
+
+      logger.debug(
+        { from: userId, to: targetPeerId, frequencyCode: normalized },
+        '[Voice Signaling] Relaying ICE candidate'
+      );
 
       // Forward to other peers in room, never echo back to the sender
       socket.to(voiceRoom).emit('voice:ice-candidate', {

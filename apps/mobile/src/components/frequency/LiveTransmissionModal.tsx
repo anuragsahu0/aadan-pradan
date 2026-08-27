@@ -17,6 +17,8 @@ export interface LiveTransmissionModalProps {
   isTalking: boolean;
   isSpeakerOn: boolean;
   isMuted: boolean;
+  activeUsers?: any[];
+  activeSpeaker?: any;
   onClose: () => void;
   onToggleSpeaker: () => void;
   onToggleMute: () => void;
@@ -31,6 +33,8 @@ export const LiveTransmissionModal: React.FC<LiveTransmissionModalProps> = ({
   isTalking,
   isSpeakerOn,
   isMuted,
+  activeUsers,
+  activeSpeaker,
   onClose,
   onToggleSpeaker,
   onToggleMute,
@@ -83,40 +87,36 @@ export const LiveTransmissionModal: React.FC<LiveTransmissionModalProps> = ({
           </Pressable>
         </View>
 
-        {/* Operator Avatars Row */}
+        {/* Operator Avatars Row (Only real connected operators) */}
         <View style={styles.avatarsRow}>
-          <View style={styles.avatarItem}>
-            <View style={[styles.avatarCircle, styles.avatarActive]}>
-              <Text style={styles.avatarText}>👤</Text>
-            </View>
-            <Text style={styles.avatarName}>You</Text>
-          </View>
-          <View style={styles.avatarItem}>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarText}>👨🏻‍💼</Text>
-            </View>
-            <Text style={styles.avatarName}>Rohit</Text>
-          </View>
-          <View style={styles.avatarItem}>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarText}>👨🏽‍💻</Text>
-            </View>
-            <Text style={styles.avatarName}>Anurag</Text>
-          </View>
-          <View style={styles.avatarItem}>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarText}>👨🏼‍💼</Text>
-              <View style={styles.micBadge}>
-                <Text style={{ fontSize: 9 }}>🔴</Text>
+          {(activeUsers && activeUsers.length > 0
+            ? activeUsers
+            : [{ id: 'me', displayName: 'You', avatar: '👤' }]
+          ).slice(0, 5).map((u) => {
+            const isSpeakingNow = activeSpeaker?.id === u.id || (isTalking && u.displayName === 'You');
+            return (
+              <View key={u.id} style={styles.avatarItem}>
+                <View style={[styles.avatarCircle, isSpeakingNow && styles.avatarActive]}>
+                  <Text style={styles.avatarText}>{u.avatar || '👤'}</Text>
+                  {isSpeakingNow && (
+                    <View style={styles.micBadge}>
+                      <Text style={{ fontSize: 9 }}>🟢</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.avatarName}>
+                  {u.displayName?.split(' ')[0] || u.username || 'Operator'}
+                </Text>
+              </View>
+            );
+          })}
+          {activeUsers && activeUsers.length > 5 && (
+            <View style={styles.avatarItem}>
+              <View style={[styles.avatarCircle, styles.moreCircle]}>
+                <Text style={styles.moreText}>+{activeUsers.length - 5}</Text>
               </View>
             </View>
-            <Text style={styles.avatarName}>Kunal</Text>
-          </View>
-          <View style={styles.avatarItem}>
-            <View style={[styles.avatarCircle, styles.moreCircle]}>
-              <Text style={styles.moreText}>+7</Text>
-            </View>
-          </View>
+          )}
         </View>
 
         {/* Big Neon Green Circular Oscilloscope Visualizer */}
@@ -165,23 +165,31 @@ export const LiveTransmissionModal: React.FC<LiveTransmissionModalProps> = ({
           </Pressable>
         </View>
 
-        {/* Recent Activity Feed */}
+        {/* Real-time Channel Activity */}
         <View style={styles.recentSection}>
-          <Text style={styles.recentTitle}>Recent Activity</Text>
+          <Text style={styles.recentTitle}>Channel Activity</Text>
           <View style={styles.activityCard}>
             <View style={styles.activityRow}>
               <View style={styles.smallAvatar}>
-                <Text style={{ fontSize: 13 }}>👨🏻‍💼</Text>
+                <Text style={{ fontSize: 13 }}>🎙️</Text>
               </View>
-              <Text style={styles.activityText}>Rohit is talking now</Text>
+              <Text style={styles.activityText}>
+                {isTalking
+                  ? 'You are transmitting live'
+                  : activeSpeaker
+                  ? `${activeSpeaker.displayName || 'Operator'} is talking`
+                  : 'Channel floor idle • Press to talk'}
+              </Text>
               <Text style={{ color: '#22C55E', marginLeft: 'auto' }}>📶</Text>
             </View>
             <View style={styles.activityRow}>
               <View style={styles.smallAvatar}>
-                <Text style={{ fontSize: 13 }}>👨🏼‍💼</Text>
+                <Text style={{ fontSize: 13 }}>👥</Text>
               </View>
-              <Text style={styles.activityText}>Kunal joined the channel</Text>
-              <Text style={styles.activityTime}>10s ago</Text>
+              <Text style={styles.activityText}>
+                {activeUsers?.length || onlineCount || 1} Connected Operator{(activeUsers?.length || onlineCount || 1) === 1 ? '' : 's'}
+              </Text>
+              <Text style={styles.activityTime}>Live</Text>
             </View>
           </View>
         </View>

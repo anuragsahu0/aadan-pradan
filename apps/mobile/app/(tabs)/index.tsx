@@ -28,6 +28,7 @@ export default function WalkieTalkieHomeScreen() {
     channelName,
     connectionStatus,
     userCount,
+    activeUsers,
     connectToFrequency,
   } = useFrequencyStore();
 
@@ -132,27 +133,31 @@ export default function WalkieTalkieHomeScreen() {
           <View style={styles.channelSubRow}>
             <View style={styles.greenDot} />
             <Text style={styles.channelSubText}>
-              Engineering Dept • {userCount || 12}/40 Online
+              {activeUsers.length || userCount || 1} Connected Operator{(activeUsers.length || userCount || 1) === 1 ? '' : 's'}
             </Text>
           </View>
 
-          {/* Operator Avatar Stack */}
+          {/* Real-Time Operator Avatar Stack (Only real connected users) */}
           <View style={styles.avatarStack}>
-            <View style={[styles.stackAvatar, { zIndex: 5 }]}>
-              <Text style={{ fontSize: 16 }}>👤</Text>
-            </View>
-            <View style={[styles.stackAvatar, { marginLeft: -10, zIndex: 4 }]}>
-              <Text style={{ fontSize: 16 }}>👨🏻‍💼</Text>
-            </View>
-            <View style={[styles.stackAvatar, { marginLeft: -10, zIndex: 3 }]}>
-              <Text style={{ fontSize: 16 }}>👨🏽‍💻</Text>
-            </View>
-            <View style={[styles.stackAvatar, { marginLeft: -10, zIndex: 2 }]}>
-              <Text style={{ fontSize: 16 }}>👨🏼‍💼</Text>
-            </View>
-            <View style={[styles.stackAvatar, styles.moreAvatar, { marginLeft: -10, zIndex: 1 }]}>
-              <Text style={styles.moreAvatarText}>+8</Text>
-            </View>
+            {(activeUsers && activeUsers.length > 0 ? activeUsers : [{ id: user?.id || 'me', username: user?.username || 'You', displayName: user?.displayName || 'Operator', avatar: user?.avatar || '👤' }]).slice(0, 5).map((u, i) => (
+              <View
+                key={u.id}
+                style={[
+                  styles.stackAvatar,
+                  i > 0 && { marginLeft: -10 },
+                  { zIndex: 10 - i },
+                ]}
+              >
+                <Text style={{ fontSize: 15 }}>
+                  {u.avatar || (u.id === user?.id ? '👤' : '👨🏽‍💻')}
+                </Text>
+              </View>
+            ))}
+            {activeUsers && activeUsers.length > 5 && (
+              <View style={[styles.stackAvatar, styles.moreAvatar, { marginLeft: -10, zIndex: 1 }]}>
+                <Text style={styles.moreAvatarText}>+{activeUsers.length - 5}</Text>
+              </View>
+            )}
           </View>
         </Pressable>
 
@@ -211,6 +216,8 @@ export default function WalkieTalkieHomeScreen() {
           isTalking={isTalking}
           isSpeakerOn={isSpeakerOn}
           isMuted={isMuted}
+          activeUsers={activeUsers}
+          activeSpeaker={activeSpeaker}
           onClose={() => setShowLiveModal(false)}
           onToggleSpeaker={toggleSpeaker}
           onToggleMute={toggleMute}

@@ -113,21 +113,34 @@ export const AcousticRaysButton: React.FC<AcousticRaysButtonProps> = ({
         ]}
       />
 
-      {/* Main Interactive Button */}
+      {/* Main Interactive Button (Supports both Push-to-Hold and Tap-to-Talk) */}
       <Pressable
         accessibilityRole={'button' as AccessibilityRole}
         accessibilityLabel={
-          isTalking ? 'Transmitting audio. Release to finish.' : 'Hold to talk'
+          isTalking ? 'Transmitting audio. Tap or release to finish.' : 'Hold or tap to talk'
         }
         disabled={isDisabled}
         onPressIn={onPressIn}
         onPressOut={onPressOut}
+        onPress={() => {
+          if (isTalking) {
+            onPressOut();
+          } else if (!isDisabled) {
+            onPressIn();
+          }
+        }}
+        {...({
+          onContextMenu: (e: any) => {
+            e.preventDefault?.();
+            return false;
+          },
+        } as any)}
         style={({ pressed }) => [
           styles.mainButton,
           {
             borderColor: activeColor,
             shadowColor: activeColor,
-            transform: [{ scale: pressed && !isDisabled ? 0.95 : 1 }],
+            transform: [{ scale: (pressed || isTalking) && !isDisabled ? 0.95 : 1 }],
           },
         ]}
       >
@@ -143,9 +156,12 @@ export const AcousticRaysButton: React.FC<AcousticRaysButtonProps> = ({
           ) : isTalking ? (
             <View style={styles.centerCol}>
               <Text style={{ fontSize: 36 }}>🎙️</Text>
-              <Text style={[styles.mainLabel, { color: '#22C55E' }]}>TRANSMITTING</Text>
+              <Text style={[styles.mainLabel, { color: '#22C55E' }]}>LIVE</Text>
               <Text style={styles.countdownText}>
                 00:{remainingSeconds.toString().padStart(2, '0')}
+              </Text>
+              <Text style={[styles.statusSubtext, { color: '#22C55E', fontSize: 10 }]}>
+                TAP OR RELEASE TO END
               </Text>
             </View>
           ) : isBusy ? (
@@ -163,6 +179,7 @@ export const AcousticRaysButton: React.FC<AcousticRaysButtonProps> = ({
                 <Text style={styles.micEmoji}>🎙️</Text>
               </View>
               <Text style={styles.holdToTalkText}>Hold to Talk</Text>
+              <Text style={[styles.statusSubtext, { fontSize: 10 }]}>OR TAP TO TALK</Text>
             </View>
           )}
         </View>
@@ -213,6 +230,9 @@ const styles = StyleSheet.create({
     shadowRadius: 25,
     elevation: 12,
     userSelect: 'none',
+    touchAction: 'none',
+    WebkitUserSelect: 'none',
+    WebkitTouchCallout: 'none',
   } as any,
   innerSurface: {
     width: 184,

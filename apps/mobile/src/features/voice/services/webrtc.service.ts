@@ -24,10 +24,22 @@ class WebRTCService {
   private remoteAudioElements = new Map<string, HTMLAudioElement>();
   private iceServers: IceServerConfig[] = [
     { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-    { urls: 'stun:stun.relay.metered.ca:80' },
-    { urls: 'stun:global.stun.twilio.com:3478' },
+    { urls: 'stun:openrelay.metered.ca:80' },
+    {
+      urls: 'turn:openrelay.metered.ca:80',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
   ];
   private activeFrequency: string | null = null;
   private callbacks: WebRTCCallbacks = {};
@@ -350,6 +362,27 @@ class WebRTCService {
 
   private playRemoteAudio(peerId: string, stream: MediaStream) {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      // 1. Direct Web Audio API pipeline directly to hardware speakers
+      try {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioContextClass) {
+          const ctx = new AudioContextClass();
+          const source = ctx.createMediaStreamSource(stream);
+          source.connect(ctx.destination);
+          if (ctx.state === 'suspended') {
+            ctx.resume().catch(() => {});
+          }
+          const resumeAudio = () => {
+            if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+          };
+          window.addEventListener('touchstart', resumeAudio, { once: true });
+          window.addEventListener('click', resumeAudio, { once: true });
+        }
+      } catch {
+        // Fallback to HTML audio element
+      }
+
+      // 2. Standard HTMLAudioElement pipeline
       let audioEl = this.remoteAudioElements.get(peerId);
       if (!audioEl) {
         audioEl = document.createElement('audio');
@@ -357,9 +390,7 @@ class WebRTCService {
         audioEl.autoplay = true;
         audioEl.setAttribute('playsinline', 'true');
         audioEl.setAttribute('webkit-playsinline', 'true');
-        audioEl.style.position = 'fixed';
-        audioEl.style.top = '-9999px';
-        audioEl.style.left = '-9999px';
+        audioEl.style.display = 'none';
         document.body.appendChild(audioEl);
         this.remoteAudioElements.set(peerId, audioEl);
       }

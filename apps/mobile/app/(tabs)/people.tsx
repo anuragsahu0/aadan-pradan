@@ -10,70 +10,30 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../src/store/authStore';
-
-interface PersonItem {
-  id: string;
-  name: string;
-  avatarEmoji: string;
-  status: 'online' | 'speaking' | 'busy' | 'offline';
-  role?: string;
-}
-
-const PEOPLE_LIST: PersonItem[] = [
-  {
-    id: 'user-0',
-    name: 'You (Anurag)',
-    avatarEmoji: '👤',
-    status: 'online',
-    role: 'Admin',
-  },
-  {
-    id: 'user-1',
-    name: 'Rohit Sharma',
-    avatarEmoji: '👨🏻‍💼',
-    status: 'online',
-  },
-  {
-    id: 'user-2',
-    name: 'Kunal Verma',
-    avatarEmoji: '👨🏼‍💼',
-    status: 'online',
-  },
-  {
-    id: 'user-3',
-    name: 'Vaibhav Singh',
-    avatarEmoji: '👨🏾‍💼',
-    status: 'speaking',
-  },
-  {
-    id: 'user-4',
-    name: 'Siddharth',
-    avatarEmoji: '👨🏻‍💻',
-    status: 'online',
-  },
-  {
-    id: 'user-5',
-    name: 'Ayush Patel',
-    avatarEmoji: '👨🏽‍💼',
-    status: 'busy',
-  },
-  {
-    id: 'user-6',
-    name: 'Priyanshu',
-    avatarEmoji: '👨🏻',
-    status: 'offline',
-  },
-];
+import { useFrequencyStore } from '../../src/store/frequencyStore';
+import { usePttStore } from '../../src/features/voice/store/pttStore';
 
 export default function PeopleScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
+  const { activeUsers, currentFrequencyCode } = useFrequencyStore();
+  const { activeSpeaker, isTalking } = usePttStore();
   const [tab, setTab] = useState<'online' | 'all'>('online');
 
-  const filteredPeople = PEOPLE_LIST.filter((p) => {
-    if (tab === 'online') return p.status === 'online' || p.status === 'speaking';
-    return true;
-  });
+  // Build real operators roster: Ensure current user is always included if roster empty
+  const realUsers = React.useMemo(() => {
+    if (activeUsers && activeUsers.length > 0) {
+      return activeUsers;
+    }
+    return [
+      {
+        id: user?.id || 'me',
+        username: user?.username || 'operator',
+        displayName: user?.displayName || 'Operator',
+        status: 'online' as const,
+      },
+    ];
+  }, [activeUsers, user]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -107,7 +67,7 @@ export default function PeopleScreen() {
                 tab === 'online' && styles.segmentTextActive,
               ]}
             >
-              Online (12)
+              Online ({realUsers.length})
             </Text>
           </Pressable>
           <Pressable
@@ -120,41 +80,41 @@ export default function PeopleScreen() {
                 tab === 'all' && styles.segmentTextActive,
               ]}
             >
-              All (40)
+              All ({realUsers.length})
             </Text>
           </Pressable>
         </View>
 
-        {/* People List */}
+        {/* Real Operators List */}
         <ScrollView contentContainerStyle={styles.listContent}>
-          {filteredPeople.map((person) => {
-            const isSpeaking = person.status === 'speaking';
-            const isBusy = person.status === 'busy';
-            const isOffline = person.status === 'offline';
-
-            const statusDotColor = isSpeaking
-              ? '#22C55E'
-              : isBusy
-              ? '#EF4444'
-              : isOffline
-              ? '#64748B'
-              : '#22C55E';
+          {realUsers.map((person) => {
+            const isMe = person.id === user?.id || person.id === 'me';
+            const isSpeaking =
+              activeSpeaker?.id === person.id ||
+              (isMe && isTalking);
 
             return (
               <View key={person.id} style={styles.userRow}>
                 {/* Avatar with Status Dot */}
                 <View style={styles.avatarWrap}>
                   <View style={styles.avatarCircle}>
-                    <Text style={{ fontSize: 22 }}>{person.avatarEmoji}</Text>
+                    <Text style={{ fontSize: 22 }}>
+                      {person.avatar || (isMe ? '👤' : '👨🏽‍💻')}
+                    </Text>
                   </View>
                   <View
-                    style={[styles.statusDot, { backgroundColor: statusDotColor }]}
+                    style={[
+                      styles.statusDot,
+                      { backgroundColor: isSpeaking ? '#22C55E' : '#22C55E' },
+                    ]}
                   />
                 </View>
 
                 {/* Name and State */}
                 <View style={styles.userInfo}>
-                  <Text style={styles.userName}>{person.name}</Text>
+                  <Text style={styles.userName}>
+                    {isMe ? `${person.displayName} (You)` : person.displayName}
+                  </Text>
                   <Text
                     style={[
                       styles.userStatusText,
@@ -163,19 +123,15 @@ export default function PeopleScreen() {
                   >
                     {isSpeaking
                       ? 'Speaking...'
-                      : isBusy
-                      ? 'Busy'
-                      : isOffline
-                      ? 'Offline'
-                      : 'Online'}
+                      : `Online • ${currentFrequencyCode || '145.800'}`}
                   </Text>
                 </View>
 
                 {/* Badges / Controls */}
-                {person.role === 'Admin' && (
+                {isMe && (
                   <View style={styles.adminBadge}>
                     <Text style={styles.crownIcon}>👑</Text>
-                    <Text style={styles.adminText}>Admin</Text>
+                    <Text style={styles.adminText}>Operator</Text>
                   </View>
                 )}
 
@@ -185,23 +141,29 @@ export default function PeopleScreen() {
                   </View>
                 )}
 
-                {!person.role && !isSpeaking && (
-                  <Pressable style={styles.actionBtn}>
-                    <Text style={{ fontSize: 16, color: '#94A3B8' }}>
-                      {isOffline || isBusy ? '•••' : '🎙️'}
-                    </Text>
-                  </Pressable>
+                {!isMe && !isSpeaking && (
+                  <View style={styles.actionBtn}>
+                    <Text style={{ fontSize: 16, color: '#94A3B8' }}>🎙️</Text>
+                  </View>
                 )}
               </View>
             );
           })}
 
-          {/* Action Grid */}
+          {/* Quick Action Grid */}
           <View style={styles.gridSection}>
             <View style={styles.gridRow}>
-              <Pressable style={styles.gridCard}>
+              <Pressable
+                onPress={() => {
+                  if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                    navigator.clipboard.writeText(window.location.href);
+                    alert('Invite link copied! Share it with anyone to talk.');
+                  }
+                }}
+                style={styles.gridCard}
+              >
                 <Text style={styles.cardEmoji}>👤⁺</Text>
-                <Text style={styles.cardLabel}>Invite</Text>
+                <Text style={styles.cardLabel}>Invite Link</Text>
               </Pressable>
               <Pressable
                 onPress={() => router.push('/(tabs)/channels')}
@@ -209,7 +171,7 @@ export default function PeopleScreen() {
               >
                 <Text style={{ fontSize: 18, color: '#22C55E' }}>((•))</Text>
                 <Text style={[styles.cardLabel, { color: '#22C55E' }]}>
-                  Create Channel
+                  Channels
                 </Text>
               </Pressable>
             </View>
@@ -222,9 +184,12 @@ export default function PeopleScreen() {
                 <Text style={styles.cardEmoji}>⚙️</Text>
                 <Text style={styles.cardLabel}>Settings</Text>
               </Pressable>
-              <Pressable style={styles.gridCard}>
-                <Text style={styles.cardEmoji}>❓</Text>
-                <Text style={styles.cardLabel}>Help</Text>
+              <Pressable
+                onPress={() => router.push('/(tabs)')}
+                style={styles.gridCard}
+              >
+                <Text style={styles.cardEmoji}>📻</Text>
+                <Text style={styles.cardLabel}>Ptt Radio</Text>
               </Pressable>
             </View>
           </View>
